@@ -15,6 +15,10 @@ get '/' do
   erb :index
 end
 
+get '/new' do
+  erb :new_document
+end
+
 get '/:filename' do
   path = File.join(data_path, params[:filename])
   if File.exist?(path)
@@ -35,6 +39,22 @@ get '/:filename/edit' do
     redirect '/'
   end
   erb :edit 
+end
+
+post '/new' do
+  filename = params[:new_name]
+  path = File.join(data_path, filename)
+  if filename.nil? || filename.empty?
+    session[:message] = "A name is required."
+    erb :new_document
+  elsif File.exist?(path)
+    session[:message] = "#{filename} already exists."
+    erb :new_document
+  else
+    File.write(path, "")
+    session[:message] = "#{filename} was created."
+    redirect '/'
+  end
 end
 
 post '/:filename' do

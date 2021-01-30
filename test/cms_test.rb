@@ -87,4 +87,28 @@ class AppTest < Minitest::Test
     assert_equal 200, last_response.status
     assert_includes last_response.body, "5678"
   end
+
+  def test_create_and_edit_new_file
+    # test attempt to recreate existing file
+    create_document("about.md")
+    post "/new", "new_name" => "about.md"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "about.md already exists"
+
+    # test attempt to leave filename blank
+    post "/new", "new_name" => ""
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "A name is required."
+
+    # test successful file creation
+    post "/new", "new_name" => "brand_new_file.txt"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "brand_new_file.txt was created."
+
+    get "/"
+    assert_includes last_response.body, "brand_new_file.txt"
+  end
 end
