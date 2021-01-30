@@ -92,6 +92,9 @@ def load_file_content(path)
   when '.txt'
     headers['Content-Type'] = 'text/plain'
     content
+  when ''
+    headers['Content-Type'] = 'text/plain'
+    content
   when '.md'
     erb render_markdown(content)
   end
