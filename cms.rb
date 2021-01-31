@@ -46,6 +46,7 @@ post '/new' do
   path = File.join(data_path, filename)
   if filename.nil? || filename.empty?
     session[:message] = "A name is required."
+    status 422
     erb :new_document
   elsif File.exist?(path)
     session[:message] = "#{filename} already exists."
@@ -74,6 +75,18 @@ post '/:filename' do
     end
   else
     session[:message] = "#{filename} does not exist."
+  end
+  redirect '/'
+end
+
+post '/:filename/delete' do
+  filename = params[:filename]
+  path = File.join(data_path, filename)
+  if File.exist?(path)
+    File.delete(path)
+    session[:message] = "#{filename} was deleted."
+  else
+    session[:message] = "#{filename} no longer exists."
   end
   redirect '/'
 end

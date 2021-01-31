@@ -97,7 +97,7 @@ class AppTest < Minitest::Test
 
     # test attempt to leave filename blank
     post "/new", "new_name" => ""
-    assert_equal 200, last_response.status
+    assert_equal 422, last_response.status
     assert_includes last_response.body, "A name is required."
 
     # test successful file creation
@@ -110,5 +110,28 @@ class AppTest < Minitest::Test
 
     get "/"
     assert_includes last_response.body, "brand_new_file.txt"
+  end
+
+  def test_delete_file
+    create_document("test.txt", "1234")
+
+    assert_equal true, File.exist?(File.join(data_path, 'test.txt'))
+
+    post "/test.txt/delete"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "test.txt was deleted."
+    refute_equal true, File.exist?(File.join(data_path, 'test.txt'))
+
+    post "/nonexistent.txt/delete"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "nonexistent.txt no longer exists."
   end
 end
