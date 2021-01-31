@@ -12,6 +12,14 @@
     <p class="message"><%= session.delete(:message) %></p>
   <% end %>
   <%= yield %>
+  <% if session[:username] %>
+    <form class="inline" action="/users/signout" method="post">
+      <p class="user-status">
+        Signed in as <%= session[:username] %>
+        <button type="submit">Sign Out</button>
+      </p>
+    </form>
+  <% end %>
 </body>
 
 </html>

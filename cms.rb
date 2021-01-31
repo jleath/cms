@@ -11,15 +11,28 @@ configure do
 end
 
 get '/' do
+  unless session[:username]
+    redirect '/users/signin'
+  end
   @files = Dir.glob(File.join(data_path, "*")).map { |path| File.basename(path) }
   erb :index
 end
 
+get '/users/signin' do
+  erb :signin
+end
+
 get '/new' do
+  unless session[:username]
+    redirect '/users/signin'
+  end
   erb :new_document
 end
 
 get '/:filename' do
+  unless session[:username]
+    redirect '/users/signin'
+  end
   path = File.join(data_path, params[:filename])
   if File.exist?(path)
     load_file_content(path)
@@ -30,6 +43,9 @@ get '/:filename' do
 end
 
 get '/:filename/edit' do
+  unless session[:username]
+    redirect '/users/signin'
+  end
   @filename = params[:filename]
   path = File.join(data_path, @filename)
   if File.exist?(path)
@@ -91,6 +107,25 @@ post '/:filename/delete' do
   redirect '/'
 end
 
+post '/users/signin' do
+  username = params[:username]
+  password = params[:password]
+  if valid_credentials?(username, password)
+    session[:username] = username
+    session[:message] = "Welcome!"
+    redirect '/'
+  else
+    session[:message] = "Invalid Credentials"
+    erb :signin
+  end
+end
+
+post '/users/signout' do
+  session.delete(:username)
+  session[:message] = "You have been signed out."
+  redirect '/users/signin'
+end
+
 def data_path
   if ENV["RACK_ENV"] == "test"
     File.expand_path("../test/data", __FILE__)
@@ -116,4 +151,8 @@ end
 def render_markdown(text)
   markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
   markdown.render(text)
+end
+
+def valid_credentials?(username, password)
+  username == 'admin' && password == 'secret'
 end

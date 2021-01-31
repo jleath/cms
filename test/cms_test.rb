@@ -18,10 +18,12 @@ class AppTest < Minitest::Test
 
   def setup
     FileUtils.mkdir_p(data_path)
+    post "/users/signin", {"username" => "admin", "password" => "secret" }
   end
 
   def teardown
     FileUtils.rm_rf(data_path)
+    post "/users/signout"
   end
 
   def create_document(name, content = "")
@@ -133,5 +135,37 @@ class AppTest < Minitest::Test
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "nonexistent.txt no longer exists."
+  end
+
+  def test_signin_and_signout
+    post '/users/signout'
+
+    # test that unsigned in user is redirected to signin
+    get '/'
+    assert_equal 302, last_response.status
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'Sign In'
+
+    # test signin with invalid credentials
+    post '/users/signin', { "username" => "admin", "password" => "bad" }
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Invalid Credentials"
+    assert_includes last_response.body, 'Sign In'
+
+    # test valid signin
+    post '/users/signin', { "username" => "admin", "password" => "secret" }
+    assert_equal 302, last_response.status
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "Welcome"
+    assert_includes last_response.body, "Signed in as admin"
+
+    # test signout
+    post '/users/signout'
+    assert_equal 302, last_response.status
+    get last_response["Location"]
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "You have been signed out"
   end
 end
