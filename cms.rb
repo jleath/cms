@@ -2,7 +2,6 @@ require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'tilt/erubis'
 require 'redcarpet'
-require 'pry'
 
 configure do
   enable :sessions
@@ -20,13 +19,13 @@ helpers do
 end
 
 get '/' do
-  @files = Dir.glob(File.join(data_path, "*")).map { |path| File.basename(path) }
+  @files = Dir.glob(File.join(data_path, '*')).map { |path| File.basename(path) }
   erb :index
 end
 
 get '/users/signin' do
   if user_signed_in?
-    session[:message] = "You are already signed in."
+    session[:message] = 'You are already signed in.'
     redirect '/'
   end
   erb :signin
@@ -58,7 +57,7 @@ get '/:filename/edit' do
     session[:message] = "#{@filename} does not exist."
     redirect '/'
   end
-  erb :edit 
+  erb :edit
 end
 
 post '/new' do
@@ -66,14 +65,14 @@ post '/new' do
   filename = params[:new_name]
   path = File.join(data_path, filename)
   if filename.nil? || filename.empty?
-    session[:message] = "A name is required."
+    session[:message] = 'A name is required.'
     status 422
     erb :new_document
   elsif File.exist?(path)
     session[:message] = "#{filename} already exists."
     erb :new_document
   else
-    File.write(path, "")
+    File.write(path, '')
     session[:message] = "#{filename} was created."
     redirect '/'
   end
@@ -119,7 +118,7 @@ post '/users/signin' do
   password = params[:password]
   if valid_credentials?(username, password)
     session[:username] = username
-    session[:message] = "Welcome!"
+    session[:message] = 'Welcome!'
     if session[:returnto]
       redirect session.delete(:returnto)
     else
@@ -127,7 +126,7 @@ post '/users/signin' do
     end
   else
     status 422
-    session[:message] = "Invalid Credentials"
+    session[:message] = 'Invalid Credentials'
     erb :signin
   end
 end
@@ -135,15 +134,15 @@ end
 post '/users/signout' do
   require_signin
   session.delete(:username)
-  session[:message] = "You have been signed out."
+  session[:message] = 'You have been signed out.'
   redirect '/users/signin'
 end
 
 def data_path
-  if ENV["RACK_ENV"] == "test"
-    File.expand_path("../test/data", __FILE__)
+  if ENV['RACK_ENV'] == 'test'
+    File.expand_path('../test/data', __FILE__)
   else
-    File.expand_path("../data", __FILE__)
+    File.expand_path('../data', __FILE__)
   end
 end
 
@@ -173,9 +172,9 @@ def user_signed_in?
 end
 
 def require_signin
-  unless user_signed_in?
-    session[:message] = "You must be signed in to do that."
-    session[:returnto] = request.path_info
-    redirect '/users/signin'
-  end
+  return if user_signed_in?
+
+  session[:message] = 'You must be signed in to do that.'
+  session[:returnto] = request.path_info
+  redirect '/users/signin'
 end

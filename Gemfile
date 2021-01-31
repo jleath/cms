@@ -1,13 +1,13 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-ruby "2.7.2"
+ruby '2.7.2'
 
-gem "sinatra", "~>1.4.7"
-gem "sinatra-contrib"
-gem "erubis"
-gem "puma"
+gem 'erubis'
+gem 'puma'
+gem 'sinatra', '~>1.4.7'
+gem 'sinatra-contrib'
 
-gem "minitest"
-gem "minitest-reporters"
-gem "rack-test"
-gem "redcarpet"
+gem 'minitest'
+gem 'minitest-reporters'
+gem 'rack-test'
+gem 'redcarpet'
