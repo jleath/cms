@@ -19,6 +19,11 @@
         <button type="submit">Sign Out</button>
       </p>
     </form>
+  <% elsif !at_signin? %>
+    <a href="/users/signin">Sign In</a>
+  <% end %>
+  <% unless at_index? %>
+    <a href="/">Return to Index</a>
   <% end %>
 </body>
 

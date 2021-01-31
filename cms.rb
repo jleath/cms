@@ -2,37 +2,43 @@ require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'tilt/erubis'
 require 'redcarpet'
-
-markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
+require 'pry'
 
 configure do
   enable :sessions
-  set :session_secret, "secret"
+  set :session_secret, 'secret'
+end
+
+helpers do
+  def at_index?
+    request.fullpath == '/'
+  end
+
+  def at_signin?
+    request.fullpath == '/users/signin'
+  end
 end
 
 get '/' do
-  unless session[:username]
-    redirect '/users/signin'
-  end
   @files = Dir.glob(File.join(data_path, "*")).map { |path| File.basename(path) }
   erb :index
 end
 
 get '/users/signin' do
+  if user_signed_in?
+    session[:message] = "You are already signed in."
+    redirect '/'
+  end
   erb :signin
 end
 
 get '/new' do
-  unless session[:username]
-    redirect '/users/signin'
-  end
+  require_signin
   erb :new_document
 end
 
 get '/:filename' do
-  unless session[:username]
-    redirect '/users/signin'
-  end
+  require_signin
   path = File.join(data_path, params[:filename])
   if File.exist?(path)
     load_file_content(path)
@@ -43,9 +49,7 @@ get '/:filename' do
 end
 
 get '/:filename/edit' do
-  unless session[:username]
-    redirect '/users/signin'
-  end
+  require_signin
   @filename = params[:filename]
   path = File.join(data_path, @filename)
   if File.exist?(path)
@@ -58,6 +62,7 @@ get '/:filename/edit' do
 end
 
 post '/new' do
+  require_signin
   filename = params[:new_name]
   path = File.join(data_path, filename)
   if filename.nil? || filename.empty?
@@ -75,6 +80,7 @@ post '/new' do
 end
 
 post '/:filename' do
+  require_signin
   filename = params[:filename]
   path = File.join(data_path, filename)
   new_contents = params[:new_contents]
@@ -96,13 +102,14 @@ post '/:filename' do
 end
 
 post '/:filename/delete' do
+  require_signin
   filename = params[:filename]
   path = File.join(data_path, filename)
   if File.exist?(path)
     File.delete(path)
     session[:message] = "#{filename} was deleted."
   else
-    session[:message] = "#{filename} no longer exists."
+    session[:message] = "#{filename} does not exist."
   end
   redirect '/'
 end
@@ -113,14 +120,20 @@ post '/users/signin' do
   if valid_credentials?(username, password)
     session[:username] = username
     session[:message] = "Welcome!"
-    redirect '/'
+    if session[:returnto]
+      redirect session.delete(:returnto)
+    else
+      redirect '/'
+    end
   else
+    status 422
     session[:message] = "Invalid Credentials"
     erb :signin
   end
 end
 
 post '/users/signout' do
+  require_signin
   session.delete(:username)
   session[:message] = "You have been signed out."
   redirect '/users/signin'
@@ -137,14 +150,12 @@ end
 def load_file_content(path)
   content = File.read(path)
   case File.extname(path)
-  when '.txt'
-    headers['Content-Type'] = 'text/plain'
-    content
-  when ''
-    headers['Content-Type'] = 'text/plain'
-    content
+  when '.html'
+    erb content
   when '.md'
     erb render_markdown(content)
+  else
+    erb "<pre>#{content}</pre>"
   end
 end
 
@@ -155,4 +166,16 @@ end
 
 def valid_credentials?(username, password)
   username == 'admin' && password == 'secret'
+end
+
+def user_signed_in?
+  !!session[:username]
+end
+
+def require_signin
+  unless user_signed_in?
+    session[:message] = "You must be signed in to do that."
+    session[:returnto] = request.path_info
+    redirect '/users/signin'
+  end
 end
