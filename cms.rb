@@ -171,7 +171,11 @@ def credential_store_path
 end
 
 def load_credential_store
-  YAML.load_file(credential_store_path)
+  if File.exist?(credential_store_path)
+    YAML.load_file(credential_store_path)
+  else
+    {}
+  end
 end
 
 def dump_credential_store(credential_hash)
@@ -198,7 +202,7 @@ def render_markdown(text)
 end
 
 def valid_credentials?(username, password)
-  credential_store = YAML.load_file(credential_store_path)
+  credential_store = load_credential_store
   return false unless credential_store.keys.include?(username)
   BCrypt::Password.new(credential_store[username]) == password
 end
