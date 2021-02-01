@@ -1,7 +1,9 @@
+require 'bcrypt'
 require 'sinatra'
 require 'sinatra/reloader' if development?
 require 'tilt/erubis'
 require 'redcarpet'
+require 'yaml'
 
 configure do
   enable :sessions
@@ -60,6 +62,10 @@ get '/:filename/edit' do
   erb :edit
 end
 
+get '/users/new' do
+  erb :create_account
+end
+
 post '/new' do
   require_signin
   filename = params[:new_name]
@@ -116,19 +122,11 @@ end
 post '/users/signin' do
   username = params[:username]
   password = params[:password]
-  if valid_credentials?(username, password)
-    session[:username] = username
-    session[:message] = 'Welcome!'
-    if session[:returnto]
-      redirect session.delete(:returnto)
-    else
-      redirect '/'
-    end
-  else
-    status 422
-    session[:message] = 'Invalid Credentials'
-    erb :signin
-  end
+  signin_and_redirect(username) if valid_credentials?(username, password)
+
+  status 422
+  session[:message] = 'Invalid Credentials'
+  erb :signin
 end
 
 post '/users/signout' do
@@ -138,11 +136,47 @@ post '/users/signout' do
   redirect '/users/signin'
 end
 
+post '/users/new' do
+  credentials = load_credential_store
+  if params[:password1] != params[:password2]
+    session[:message] = "Passwords do not match. Try again."
+    status 422
+    erb :create_account
+  elsif credentials.key?(params[:username])
+    session[:message] = "That username already exists. Try again."
+    status 422
+    erb :create_account
+  else
+    encrypted = BCrypt::Password.create(params[:password1])
+    credentials[params[:username]] = encrypted.to_s
+    dump_credential_store(credentials)
+    signin_and_redirect(params[:username])
+  end
+end
+
 def data_path
   if ENV['RACK_ENV'] == 'test'
     File.expand_path('../test/data', __FILE__)
   else
     File.expand_path('../data', __FILE__)
+  end
+end
+
+def credential_store_path
+  if ENV['RACK_ENV'] == 'test'
+    File.expand_path('../test/users.yaml', __FILE__)
+  else
+    File.expand_path('../users.yaml', __FILE__)
+  end
+end
+
+def load_credential_store
+  YAML.load_file(credential_store_path)
+end
+
+def dump_credential_store(credential_hash)
+  File.open(credential_store_path, 'w') do |file|
+    file.write(YAML.dump(credential_hash))
   end
 end
 
@@ -164,7 +198,9 @@ def render_markdown(text)
 end
 
 def valid_credentials?(username, password)
-  username == 'admin' && password == 'secret'
+  credential_store = YAML.load_file(credential_store_path)
+  return false unless credential_store.keys.include?(username)
+  BCrypt::Password.new(credential_store[username]) == password
 end
 
 def user_signed_in?
@@ -177,4 +213,14 @@ def require_signin
   session[:message] = 'You must be signed in to do that.'
   session[:returnto] = request.path_info
   redirect '/users/signin'
+end
+
+def signin_and_redirect(username)
+  session[:username] = username
+  session[:message] = 'Welcome!'
+  if session[:returnto]
+    redirect session.delete(:returnto)
+  else
+    redirect '/'
+  end
 end

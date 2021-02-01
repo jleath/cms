@@ -1,0 +1,15 @@
+<form action="/users/new" method="post">
+  <div>
+    <label for="username">Username:</label>
+    <input type="text" name="username" value="<%= params[:username] || '' %>" />
+  </div>
+  <div>
+    <label for="password1">Password:</label>
+    <input type="password" name="password1" value=""/>
+  </div>
+  <div>
+    <label for="password2">Re-enter Password:</label>
+    <input type="password" name="password2" value=""/>
+  </div>
+  <button type="submit">Register</button>
+</form>

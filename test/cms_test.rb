@@ -16,8 +16,15 @@ class AppTest < Minitest::Test
     Sinatra::Application
   end
 
+  def user_backup_file
+    File.expand_path('../users_backup.yaml', __FILE__)
+  end
+
   def setup
     FileUtils.mkdir_p(data_path)
+    File.open("#{credential_store_path}", 'w') do |file|
+      file.write(File.read(user_backup_file))
+    end
   end
 
   def teardown
@@ -41,11 +48,8 @@ class AppTest < Minitest::Test
   def test_index
     create_document('about.md')
     create_document('changes.txt')
-
     get '/'
-
     assert_equal 200, last_response.status
-    assert_equal 'text/html;charset=utf-8', last_response['Content-Type']
     assert_includes last_response.body, 'about.md'
     assert_includes last_response.body, 'changes.txt'
   end
@@ -55,9 +59,7 @@ class AppTest < Minitest::Test
     get '/history.txt', {}, admin_session
     assert_equal 200, last_response.status
     assert_includes last_response.body, 'sample text'
-  end
 
-  def test_document_not_found
     get '/notafile.ext', {}, admin_session
     assert_equal 302, last_response.status
     assert_equal 'notafile.ext does not exist.', session[:message]
@@ -66,7 +68,6 @@ class AppTest < Minitest::Test
   def test_viewing_markdown_document
     create_document('markdown.md', '# Heading 1')
     get '/markdown.md', {}, admin_session
-    assert_equal 200, last_response.status
     assert_equal 'text/html;charset=utf-8', last_response['Content-Type']
     assert_includes last_response.body, '<h1>Heading 1</h1>'
   end
@@ -180,6 +181,15 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, 'Signed in as admin'
   end
 
+  def test_second_credential_set
+    post '/users/signin', { 'username' => 'tester', 'password' => 'password' }
+    assert_equal 302, last_response.status
+    assert_equal 'Welcome!', session[:message]
+    assert_equal 'tester', session[:username]
+    get last_response['Location']
+    assert_includes last_response.body, 'Signed in as tester'
+  end
+
   def test_signout
     post '/users/signout', {}, admin_session
     assert_equal 302, last_response.status
@@ -197,5 +207,38 @@ class AppTest < Minitest::Test
     assert_equal 'Welcome!', session[:message]
     get last_response['Location']
     assert_includes last_response.body, 'Edit contents of about.md'
+  end
+
+  def test_create_account_view
+    get '/users/new'
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, 'form action="/users/new'
+  end
+
+  def test_create_new_user
+    post '/users/new', 
+         { 'username' => 'tester2', 'password1' => 'secret', 'password2' => 'secret' }
+    assert_equal 302, last_response.status
+    assert_equal 'Welcome!', session[:message]
+    get last_response['Location']
+    assert_includes last_response.body, 'Signed in as tester2'
+  end
+
+  def test_create_duplicate_user
+    post '/users/new',
+         { 'username' => 'admin', 'password1' => 'secret', 'password2' => 'secret' }
+    assert_equal 422, last_response.status
+    assert_nil session[:username]
+    assert_includes last_response.body, 'Register'
+    assert_includes last_response.body, 'That username already exists. Try again.'
+  end
+
+  def test_create_user_different_passwords
+    post '/users/new',
+         { 'username' => 'tester2', 'password1' => 'one', 'password2' => 'two' }
+    assert_equal 422, last_response.status
+    assert_nil session[:username]
+    assert_includes last_response.body, 'Register'
+    assert_includes last_response.body, 'Passwords do not match. Try again.'
   end
 end
