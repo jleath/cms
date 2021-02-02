@@ -5,6 +5,8 @@ require 'tilt/erubis'
 require 'redcarpet'
 require 'yaml'
 
+require_relative 'credential_manager'
+
 configure do
   enable :sessions
   set :session_secret, 'secret'
@@ -21,7 +23,7 @@ helpers do
 end
 
 get '/' do
-  @files = Dir.glob(File.join(data_path, '*')).map { |path| File.basename(path) }
+  @files = load_files
   erb :index
 end
 
@@ -40,11 +42,12 @@ end
 
 get '/:filename' do
   require_signin
-  path = File.join(data_path, params[:filename])
+  filename = params[:filename]
+  path = File.join(data_path, filename)
   if File.exist?(path)
     load_file_content(path)
   else
-    session[:message] = "#{params[:filename]} does not exist."
+    session[:message] = "#{filename} does not exist."
     redirect '/'
   end
 end
@@ -122,7 +125,8 @@ end
 post '/users/signin' do
   username = params[:username]
   password = params[:password]
-  signin_and_redirect(username) if valid_credentials?(username, password)
+  credentials = CredentialManager.new(ENV['RACK_ENV'])
+  signin_and_redirect(username) if credentials.valid?(username, password)
 
   status 422
   session[:message] = 'Invalid Credentials'
@@ -137,20 +141,22 @@ post '/users/signout' do
 end
 
 post '/users/new' do
-  credentials = load_credential_store
-  if params[:password1] != params[:password2]
-    session[:message] = "Passwords do not match. Try again."
+  credentials = CredentialManager.new(ENV['RACK_ENV'])
+  username = params[:username]
+  password1 = params[:password1]
+  password2 = params[:password2]
+  if password1 != password2
+    session[:message] = 'Passwords do not match. Try again.'
     status 422
     erb :create_account
-  elsif credentials.key?(params[:username])
-    session[:message] = "That username already exists. Try again."
+  elsif credentials.user_exists?(username)
+    session[:message] = 'That username already exists. Try again.'
     status 422
     erb :create_account
   else
-    encrypted = BCrypt::Password.create(params[:password1])
-    credentials[params[:username]] = encrypted.to_s
-    dump_credential_store(credentials)
-    signin_and_redirect(params[:username])
+    credentials.cache_password(username, password1)
+    credentials.close
+    signin_and_redirect(username)
   end
 end
 
@@ -159,28 +165,6 @@ def data_path
     File.expand_path('../test/data', __FILE__)
   else
     File.expand_path('../data', __FILE__)
-  end
-end
-
-def credential_store_path
-  if ENV['RACK_ENV'] == 'test'
-    File.expand_path('../test/users.yaml', __FILE__)
-  else
-    File.expand_path('../users.yaml', __FILE__)
-  end
-end
-
-def load_credential_store
-  if File.exist?(credential_store_path)
-    YAML.load_file(credential_store_path)
-  else
-    {}
-  end
-end
-
-def dump_credential_store(credential_hash)
-  File.open(credential_store_path, 'w') do |file|
-    file.write(YAML.dump(credential_hash))
   end
 end
 
@@ -196,15 +180,13 @@ def load_file_content(path)
   end
 end
 
+def load_files
+  Dir.glob(File.join(data_path, '*')).map { |path| File.basename(path) }
+end
+
 def render_markdown(text)
   markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
   markdown.render(text)
-end
-
-def valid_credentials?(username, password)
-  credential_store = load_credential_store
-  return false unless credential_store.keys.include?(username)
-  BCrypt::Password.new(credential_store[username]) == password
 end
 
 def user_signed_in?

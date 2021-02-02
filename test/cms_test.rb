@@ -20,9 +20,13 @@ class AppTest < Minitest::Test
     File.expand_path('../users_backup.yaml', __FILE__)
   end
 
+  def user_file
+    File.expand_path('../users.yaml', __FILE__)
+  end
+
   def setup
     FileUtils.mkdir_p(data_path)
-    File.open("#{credential_store_path}", 'w') do |file|
+    File.open(user_file, 'w') do |file|
       file.write(File.read(user_backup_file))
     end
   end
