@@ -10,5 +10,7 @@ gem 'sinatra-contrib'
 
 gem 'minitest'
 gem 'minitest-reporters'
+gem 'pygments.rb'
+gem 'rake'
 gem 'rack-test'
 gem 'redcarpet'
